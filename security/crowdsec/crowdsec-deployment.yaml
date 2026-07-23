@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crowdsec
+  namespace: security
+  labels:
+    app: crowdsec
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crowdsec
+  template:
+    metadata:
+      labels:
+        app: crowdsec
+    spec:
+      containers:
+        - name: crowdsec
+          image: crowdsecurity/crowdsec:v1.7.8
+          args:
+            - "-config=/etc/crowdsec/config/config.yaml"
+          ports:
+          - containerPort: 8080
+            name: api
+          env:
+          - name: COLLECTIONS
+            value: "crowdsecurity/traefik"
+          volumeMounts:
+          - name: config
+            mountPath: /etc/crowdsec/acquis.yaml
+            subPath: acquis.yaml
+          - name: config
+            mountPath: /etc/crowdsec/config/config.yaml
+            subPath: config.yaml
+          - name: data
+            mountPath: /var/lib/crowdsec/data
+          - name: logs
+            mountPath: /var/log/traefik
+            readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: crowdsec-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: crowdsec-pvc
+        - name: logs
+          hostPath:
+            path: /var/log/traefik
+            type: DirectoryOrCreate
