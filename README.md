@@ -321,27 +321,19 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 If you find this project helpful, please give it a ⭐ on GitHub!
 
-### Buy Me a Coffee
-
-If SOC-lite has helped you learn security operations or saved you time, consider buying me a coffee!
-
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/YOUR_USERNAME)
-
 ### GitHub Sponsors
 
 You can also sponsor me through GitHub Sponsors:
 
-[![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-EA4B71?style=for-the-badge&logo=github-sponsors&logoColor=white)](https://github.com/sponsors/YOUR_USERNAME)
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-EA4B71?style=for-the-badge&logo=github-sponsors&logoColor=white)](https://github.com/sponsors/inv3ntor01)
 
 ### Other Ways to Support
 
 | Platform | Link |
 |----------|------|
-| 💰 **Ko-fi** | [![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white)](https://ko-fi.com/YOUR_USERNAME) |
-| 🎁 **Open Collective** | [![Open Collective](https://img.shields.io/badge/Open%20Collective-3385FF?style=flat-square&logo=open-collective&logoColor=white)](https://opencollective.com/YOUR_USERNAME) |
-| 🐦 **Twitter** | [![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?style=flat-square&logo=twitter&logoColor=white)](https://twitter.com/YOUR_USERNAME) |
-
-> **Note:** Replace `YOUR_USERNAME` with your actual username on each platform.
+| 💰 **Ko-fi** | [![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?style=flat-square&logo=ko-fi&logoColor=white)](https://ko-fi.com/inv3ntor01) |
+| 🎁 **Open Collective** | [![Open Collective](https://img.shields.io/badge/Open%20Collective-3385FF?style=flat-square&logo=open-collective&logoColor=white)](https://opencollective.com/inv3ntor01) |
+| 🐦 **Twitter** | [![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?style=flat-square&logo=twitter&logoColor=white)](https://twitter.com/inv3ntor01) |
 
 ## 📄 License
 
