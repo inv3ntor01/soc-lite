@@ -42,22 +42,31 @@ n8n-k8s/
 - [x] Connect Loki to Grafana
 - [ ] n8n workflow: Prometheus webhook → alert on traffic spike
 
-### Phase 3: Security (current)
+### Phase 3: Security ✅
 - [x] Deploy CrowdSec (parse Traefik logs, detect threats)
 - [x] Traefik configured to write JSON logs to /var/log/traefik/traefik.log
 - [x] n8n workflow: CrowdSec alert → Discord notification
-- [ ] Add GeoIP enrichment to alerts
+- [x] Add GeoIP enrichment to alerts (ip-api.com)
 
-### Phase 4: Automation
-- [ ] n8n workflow: log anomaly → auto-block IP via Traefik
+### Phase 4: Automation (current)
+- [x] CrowdSec Traefik bouncer — auto-block banned IPs at Traefik level
 - [ ] n8n workflow: daily security summary email
 - [ ] Prometheus → n8n → auto-scale alerts
 
 ## Current Status
 - **n8n**: Running at https://n8n.kube (self-signed cert)
 - **Traefik**: Running, HTTP→HTTPS redirect disabled for local dev
-- **WSL IP**: 172.30.60.115
-- **Next**: Add GeoIP enrichment to alerts, or move to Phase 4
+- **CrowdSec bouncer**: Live mode, blocking works (tested)
+- **WSL IP**: 172.30.60.115 (NAT'd to 10.42.0.1 inside k3s)
+- **Phase 3**: Complete — CrowdSec alerts with GeoIP enrichment firing to Discord
+- **Phase 4.1**: Complete — bouncer works, but k3s NAT limits to single-IP banning
+- **Next**: Phase 4.2 — daily summary, Phase 4.3 — Prometheus alerts
+
+## Known Limitations
+- k3s NATs all Windows traffic to 10.42.0.1 inside the cluster
+- Traefik bouncer can only ban/unban the entire Windows host, not individual IPs
+- Individual IP blocking would require a cloud LB or real reverse proxy with direct client IP visibility
+- CrowdSec whitelists must NOT include private IP ranges (10.0.0.0/8, 172.16.0.0/12) for bouncer to work
 
 ## Conventions
 - No Helm charts — plain YAML manifests only
@@ -68,4 +77,5 @@ n8n-k8s/
 - **Hands-on learning**: User writes the code, I guide
 - **Only point out mistakes** — don't fix files for them
 - **Guide step by step** — one component at a time
+- **NEVER run kubectl apply/create/patch yourself** — give the user the exact command and let them run it
 - **Update this file** to track progress

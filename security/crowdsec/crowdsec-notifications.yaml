@@ -13,6 +13,8 @@ data:
     url: http://n8n.n8n.svc.cluster.local:5678/webhook/crowdsec-alert
     method: POST
     skip_tls_verification: false
+    headers:
+      Content-Type: application/json
   profiles.yaml: |
     name: default_ip_remediation
     filters:

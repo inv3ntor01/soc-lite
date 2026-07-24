@@ -1,0 +1,18 @@
+# CrowdSec whitelists — must NOT include private IP ranges
+# that k3s NATs traffic to, otherwise the Traefik bouncer can't see banned IPs.
+# k3s NATs all Windows traffic to 10.42.0.1 inside the cluster.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crowdsec-whitelist
+  namespace: security
+data:
+  whitelists.yaml: |
+    name: crowdsecurity/whitelists
+    description: "Whitelist events from private ipv4 addresses"
+    whitelist:
+      reason: "private ipv4/ipv6 ip/ranges"
+      ip:
+        - "::1"
+      cidr:
+        - "127.0.0.0/8"
