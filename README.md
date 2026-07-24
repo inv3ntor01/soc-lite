@@ -24,6 +24,7 @@ SOC-lite provides real-time threat detection, log aggregation, and automated ale
 | 📝 **Loki** | Centralized log aggregation | ✅ Deployed |
 | 🤖 **n8n** | Workflow automation + Discord alerts | ✅ Deployed |
 | 🌐 **Traefik** | Reverse proxy + ingress controller | ✅ Deployed |
+| 🛡️ **CrowdSec Bouncer** | Auto-block banned IPs at Traefik level | ✅ Deployed |
 | 📈 **Prometheus** | Metrics collection | 🔜 Coming Soon |
 
 ## 🏗️ Architecture
@@ -55,7 +56,8 @@ SOC-lite provides real-time threat detection, log aggregation, and automated ale
 2. **CrowdSec** reads logs → detects threats (brute force, CVEs, scanning)
 3. **CrowdSec** triggers alerts → sends to **n8n** via webhook
 4. **n8n** processes alerts → sends notifications to **Discord**
-5. **Loki** aggregates all logs → **Grafana** visualizes dashboards
+5. **CrowdSec Bouncer** in Traefik → auto-blocks banned IPs at ingress level
+6. **Loki** aggregates all logs → **Grafana** visualizes dashboards
 
 ## 🚀 Prerequisites
 
@@ -145,6 +147,38 @@ kubectl apply -f monitoring/grafana/
 kubectl apply -f security/crowdsec/
 ```
 
+### Step 8.1: Deploy CrowdSec Bouncer
+
+```bash
+# Generate bouncer key
+kubectl exec -n security deploy/crowdsec -- cscli bouncers add traefik -o raw > bouncer-key.txt
+
+# Create secret from key
+kubectl -n security create secret generic crowdsec-bouncer-key \
+  --from-file=BOUNCER_KEY_traefik=bouncer-key.txt
+
+# Deploy RBAC and middleware
+kubectl apply -f security/traefik-bouncer/
+
+# Patch Traefik with bouncer plugin + CRD provider
+kubectl -n traefik patch deploy traefik --type='json' -p='[
+  {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--providers.kubernetescrd"},
+  {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--providers.kubernetescrd.allowCrossNamespace=true"},
+  {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--experimental.plugins.bouncer.moduleName=github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin"},
+  {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--experimental.plugins.bouncer.version=v1.4.5"},
+  {"op":"add","path":"/spec/template/spec/containers/0/volumeMounts/-","value":{"name":"crowdsec-bouncer-key","mountPath":"/etc/traefik/crowdsec","readOnly":true}},
+  {"op":"add","path":"/spec/template/spec/volumes/-","value":{"name":"crowdsec-bouncer-key","secret":{"secretName":"crowdsec-bouncer-key"}}}
+]'
+
+# Apply middleware to ingress (example: grafana)
+kubectl annotate ingress grafana -n monitoring traefik.ingress.kubernetes.io/router.middlewares=traefik-crowdsec-bouncer@kubernetescrd
+
+# Restart Traefik
+kubectl -n traefik rollout restart deploy/traefik
+```
+
+**Note:** Add middleware annotation to each ingress you want protected by CrowdSec bouncer.
+
 ### Step 9: Configure Traefik for JSON Logs
 
 ```bash
@@ -218,11 +252,17 @@ n8n-k8s/
 │       ├── ingress.yaml
 │       └── pvc.yaml
 ├── security/
-│   └── crowdsec/                # Threat detection
-│       ├── crowdsec-deployment.yaml
-│       ├── crowdsec-pvc.yaml
-│       ├── crowdsec-config.yaml
-│       └── crowdsec-notifications.yaml
+│   ├── crowdsec/                # Threat detection
+│   │   ├── crowdsec-deployment.yaml
+│   │   ├── crowdsec-pvc.yaml
+│   │   ├── crowdsec-config.yaml
+│   │   ├── crowdsec-notifications.yaml
+│   │   ├── crowdsec-service.yaml
+│   │   └── whitelist-configmap.yaml
+│   └── traefik-bouncer/        # Traefik IP blocking
+│       ├── rbac.yaml
+│       ├── middleware.yaml
+│       └── bouncer-key-secret.yaml
 └── alerts/                      # n8n workflow exports
 ```
 
@@ -278,6 +318,26 @@ kubectl exec -n security deploy/crowdsec -- wget -qO- \
   --post-data='{"test":"data"}' \
   --header='Content-Type: application/json' \
   http://n8n.n8n.svc.cluster.local:5678/webhook/crowdsec-alert
+```
+
+### Traefik Bouncer Not Working
+
+```bash
+# Check if middleware is loaded in Traefik
+kubectl exec -n traefik deploy/traefik -- wget -qO- --no-check-certificate \
+  'http://localhost:8080/api/http/middlewares' | python3 -m json.tool
+
+# Check bouncer logs
+kubectl -n traefik logs deploy/traefik --tail=50 | grep -i "CrowdsecBouncer"
+
+# Verify CrowdSec Service exists with correct selector
+kubectl -n security get ep crowdsec-service
+
+# Test bouncer: ban an IP
+kubectl exec -n security deploy/crowdsec -- cscli decisions add --ip 1.2.3.4 --reason test --type ban --duration 1m
+
+# Check active bans
+kubectl exec -n security deploy/crowdsec -- cscli decisions list
 ```
 
 ## 📚 Learning Resources
