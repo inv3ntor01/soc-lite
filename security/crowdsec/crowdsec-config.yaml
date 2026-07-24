@@ -24,4 +24,5 @@ data:
     log:
       level: info
     prometheus:
-      enabled: false
+      enabled: true
+      listen_port: 6060

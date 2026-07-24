@@ -25,29 +25,34 @@ SOC-lite provides real-time threat detection, log aggregation, and automated ale
 | 🤖 **n8n** | Workflow automation + Discord alerts | ✅ Deployed |
 | 🌐 **Traefik** | Reverse proxy + ingress controller | ✅ Deployed |
 | 🛡️ **CrowdSec Bouncer** | Auto-block banned IPs at Traefik level | ✅ Deployed |
-| 📈 **Prometheus** | Metrics collection | 🔜 Coming Soon |
+| 📈 **Prometheus** | Metrics collection + alerting | ✅ Deployed |
 
 ## 🏗️ Architecture
 
 ```
-                    Internet
-                       │
-                  ┌────▼────┐
-                  │ Traefik │
-                  │ (Ingress)│
-                  └────┬────┘
-                       │
-        ┌──────────────┼──────────────┐
-        │              │              │
-   ┌────▼────┐   ┌─────▼─────┐   ┌────▼────┐
-   │   n8n   │   │  CrowdSec  │   │ Grafana │
-   │ (Alerts)│   │ (Security) │   │(Dashboard)│
-   └────┬────┘   └─────┬─────┘   └────┬────┘
-        │              │              │
-        │         ┌────▼────┐         │
-        └────────►│  Loki   │◄────────┘
-                  │  (Logs) │
-                  └─────────┘
+                     Internet
+                        │
+                   ┌────▼────┐
+                   │ Traefik │
+                   │ (Ingress)│
+                   └────┬────┘
+                        │
+         ┌──────────────┼──────────────┐
+         │              │              │
+    ┌────▼────┐   ┌─────▼─────┐   ┌────▼────┐
+    │   n8n   │   │  CrowdSec  │   │ Grafana │
+    │ (Alerts)│   │ (Security) │   │(Dashboard)│
+    └────┬────┘   └─────┬─────┘   └────┬────┘
+         │              │              │
+         │         ┌────▼────┐         │
+         └────────►│  Loki   │◄────────┘
+                   │  (Logs) │
+                   └─────────┘
+                        │
+                   ┌────▼────┐
+                   │Prometheus│
+                   │(Metrics)│
+                   └─────────┘
 ```
 
 ### Data Flow
@@ -58,6 +63,8 @@ SOC-lite provides real-time threat detection, log aggregation, and automated ale
 4. **n8n** processes alerts → sends notifications to **Discord**
 5. **CrowdSec Bouncer** in Traefik → auto-blocks banned IPs at ingress level
 6. **Loki** aggregates all logs → **Grafana** visualizes dashboards
+7. **Prometheus** scrapes metrics (kubelet, Traefik, CrowdSec) → **n8n** queries for alerts → **Discord**
+8. **Grafana** connects to both **Loki** and **Prometheus** for unified dashboards
 
 ## 🚀 Prerequisites
 
@@ -206,7 +213,54 @@ kubectl patch deployment traefik -n traefik --type='json' -p='[
    - Add Discord node → Paste your webhook URL
    - Connect nodes → Activate workflow
 
-### Step 11: Configure DNS (Windows)
+### Step 11: Deploy Prometheus
+
+```bash
+# RBAC
+kubectl apply -f monitoring/prometheus/rbac.yaml
+
+# TLS secret
+kubectl apply -f monitoring/prometheus/tls-secret.yaml
+
+# Config
+kubectl apply -f monitoring/prometheus/configmap.yaml
+
+# Storage
+kubectl apply -f monitoring/prometheus/pvc.yaml
+
+# Deployment + Service
+kubectl apply -f monitoring/prometheus/deployment.yaml
+kubectl apply -f monitoring/prometheus/service.yaml
+
+# Ingress
+kubectl apply -f monitoring/prometheus/ingress.yaml
+```
+
+### Step 12: Enable Traefik Metrics
+
+```bash
+kubectl patch deployment traefik -n traefik --type='json' -p='[
+  {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--metrics.prometheus=true"},
+  {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--metrics.prometheus.addEntryPointsLabels=true"},
+  {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--metrics.prometheus.addRoutersLabels=true"}
+]'
+```
+
+### Step 13: Enable CrowdSec Metrics
+
+```bash
+kubectl apply -f security/crowdsec/crowdsec-config.yaml
+kubectl rollout restart deployment crowdsec -n security
+```
+
+### Step 14: Add Prometheus to Grafana
+
+```bash
+kubectl apply -f monitoring/grafana/datasources-configmap.yaml
+kubectl rollout restart deployment grafana -n monitoring
+```
+
+### Step 15: Configure DNS (Windows)
 
 Add to `C:\Windows\System32\drivers\etc\hosts`:
 
@@ -214,6 +268,7 @@ Add to `C:\Windows\System32\drivers\etc\hosts`:
 172.30.60.115 n8n.kube
 172.30.60.115 loki.kube
 172.30.60.115 grafana.kube
+172.30.60.115 prometheus.kube
 ```
 
 ## 🌐 Access Points
@@ -222,6 +277,7 @@ Add to `C:\Windows\System32\drivers\etc\hosts`:
 |---------|-----|---------------------|
 | **n8n** | https://n8n.kube | Setup on first login |
 | **Grafana** | https://grafana.kube | admin / admin |
+| **Prometheus** | https://prometheus.kube | - |
 | **Loki** | https://loki.kube | - |
 | **CrowdSec API** | http://localhost:8080 | - |
 
@@ -246,11 +302,20 @@ n8n-k8s/
 │   │   ├── ingress.yaml
 │   │   ├── pvc.yaml
 │   │   └── configmap.yaml
-│   └── grafana/                 # Dashboards
+│   ├── grafana/                 # Dashboards
+│   │   ├── deployment.yaml
+│   │   ├── service.yaml
+│   │   ├── ingress.yaml
+│   │   ├── pvc.yaml
+│   │   └── datasources-configmap.yaml
+│   └── prometheus/              # Metrics collection
+│       ├── rbac.yaml
+│       ├── configmap.yaml
 │       ├── deployment.yaml
 │       ├── service.yaml
 │       ├── ingress.yaml
-│       └── pvc.yaml
+│       ├── pvc.yaml
+│       └── tls-secret.yaml
 ├── security/
 │   ├── crowdsec/                # Threat detection
 │   │   ├── crowdsec-deployment.yaml
@@ -338,6 +403,22 @@ kubectl exec -n security deploy/crowdsec -- cscli decisions add --ip 1.2.3.4 --r
 
 # Check active bans
 kubectl exec -n security deploy/crowdsec -- cscli decisions list
+```
+
+### Prometheus Not Scraping Targets
+
+```bash
+# Check all targets status
+kubectl exec -n monitoring deploy/prometheus -- wget -qO- 'http://localhost:9090/api/v1/targets' | python3 -m json.tool | grep -E '"health"'
+
+# Check if kubelet is UP (requires RBAC)
+kubectl auth can-i get nodes/proxy --as=system:serviceaccount:monitoring:prometheus
+
+# Test Prometheus query
+kubectl exec -n monitoring deploy/prometheus -- wget -qO- 'http://localhost:9090/api/v1/query?query=up' | python3 -m json.tool
+
+# Restart Prometheus after config changes
+kubectl rollout restart deployment prometheus -n monitoring
 ```
 
 ## 📚 Learning Resources

@@ -40,7 +40,6 @@ n8n-k8s/
 - [x] Deploy Loki for log aggregation
 - [x] Deploy Grafana (dashboards for metrics + logs)
 - [x] Connect Loki to Grafana
-- [ ] n8n workflow: Prometheus webhook → alert on traffic spike
 
 ### Phase 3: Security ✅
 - [x] Deploy CrowdSec (parse Traefik logs, detect threats)
@@ -48,19 +47,29 @@ n8n-k8s/
 - [x] n8n workflow: CrowdSec alert → Discord notification
 - [x] Add GeoIP enrichment to alerts (ip-api.com)
 
-### Phase 4: Automation (current)
+### Phase 4: Automation
 - [x] CrowdSec Traefik bouncer — auto-block banned IPs at Traefik level
 - [ ] n8n workflow: daily security summary email
-- [ ] Prometheus → n8n → auto-scale alerts
+
+### Phase 5: Alerting (current)
+- [x] Deploy Prometheus (kubelet, Traefik, CrowdSec metrics)
+- [x] Connect Prometheus to Grafana as data source
+- [x] Enable Traefik Prometheus metrics
+- [x] Enable CrowdSec Prometheus metrics
+- [x] n8n workflow: Prometheus query → Discord alert (error rate, service health)
+- [ ] n8n workflow: daily security summary (CrowdSec decisions count)
 
 ## Current Status
 - **n8n**: Running at https://n8n.kube (self-signed cert)
-- **Traefik**: Running, HTTP→HTTPS redirect disabled for local dev
+- **Traefik**: Running, HTTP→HTTPS redirect disabled for local dev, Prometheus metrics enabled
 - **CrowdSec bouncer**: Live mode, blocking works (tested)
+- **Prometheus**: Running, all 3 targets UP (kubelet, traefik, crowdsec)
+- **Grafana**: Running with Loki + Prometheus data sources
 - **WSL IP**: 172.30.60.115 (NAT'd to 10.42.0.1 inside k3s)
 - **Phase 3**: Complete — CrowdSec alerts with GeoIP enrichment firing to Discord
 - **Phase 4.1**: Complete — bouncer works, but k3s NAT limits to single-IP banning
-- **Next**: Phase 4.2 — daily summary, Phase 4.3 — Prometheus alerts
+- **Phase 5**: Prometheus deployed, Workflow 1 (metric alerts) done, Workflow 2 (daily summary) pending
+- **Next**: Build n8n Workflow 2 (daily security summary)
 
 ## Known Limitations
 - k3s NATs all Windows traffic to 10.42.0.1 inside the cluster
